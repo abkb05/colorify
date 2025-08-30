@@ -1,12 +1,25 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import ColorifyHeader from "@/components/ColorifyHeader";
+import HeroSection from "@/components/HeroSection";
+import ProcessSteps from "@/components/ProcessSteps";
+import UploadZone from "@/components/UploadZone";
+import SamplesSlider from "@/components/SamplesSlider";
+import TeamSection from "@/components/TeamSection";
+import ContactForm from "@/components/ContactForm";
+import ColorifyFooter from "@/components/ColorifyFooter";
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-background font-inter">
+      <ColorifyHeader />
+      <main>
+        <HeroSection />
+        <ProcessSteps />
+        <UploadZone />
+        <SamplesSlider />
+        <TeamSection />
+        <ContactForm />
+      </main>
+      <ColorifyFooter />
     </div>
   );
 };
