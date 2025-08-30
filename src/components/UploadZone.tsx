@@ -1,11 +1,13 @@
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, Image as ImageIcon, X, Sparkles } from "lucide-react";
+import { Upload, Image as ImageIcon, X, Sparkles, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import sampleColor1 from "@/assets/sample-color-1.jpg";
 
 const UploadZone = () => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [colorizedImage, setColorizedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
 
@@ -52,8 +54,9 @@ const UploadZone = () => {
 
   const handleColorize = () => {
     setIsProcessing(true);
-    // Simulate processing
+    // Simulate processing and set colorized image
     setTimeout(() => {
+      setColorizedImage(sampleColor1); // In real app, this would be the AI result
       setIsProcessing(false);
       toast({
         title: "Colorization complete!",
@@ -64,7 +67,24 @@ const UploadZone = () => {
 
   const removeImage = () => {
     setUploadedImage(null);
+    setColorizedImage(null);
     setIsProcessing(false);
+  };
+
+  const downloadImage = () => {
+    if (colorizedImage) {
+      const link = document.createElement('a');
+      link.href = colorizedImage;
+      link.download = 'colorized-photo.jpg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Download started!",
+        description: "Your colorized photo is being downloaded.",
+      });
+    }
   };
 
   return (
@@ -124,43 +144,104 @@ const UploadZone = () => {
               </div>
             ) : (
               <div className="space-y-6">
-                <div className="relative">
-                  <img
-                    src={uploadedImage}
-                    alt="Uploaded"
-                    className="w-full max-w-2xl mx-auto rounded-2xl shadow-lg"
-                  />
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="absolute top-4 right-4"
-                    onClick={removeImage}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                <div className="text-center">
-                  <Button
-                    variant="hero"
-                    size="lg"
-                    onClick={handleColorize}
-                    disabled={isProcessing}
-                    className="px-12"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-foreground mr-2" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="mr-2 h-5 w-5" />
-                        Colorize Photo
-                      </>
-                    )}
-                  </Button>
-                </div>
+                {!colorizedImage ? (
+                  // Show original image before colorization
+                  <>
+                    <div className="relative">
+                      <img
+                        src={uploadedImage}
+                        alt="Uploaded"
+                        className="w-full max-w-2xl mx-auto rounded-2xl shadow-lg"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-4 right-4"
+                        onClick={removeImage}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    
+                    <div className="text-center">
+                      <Button
+                        variant="hero"
+                        size="lg"
+                        onClick={handleColorize}
+                        disabled={isProcessing}
+                        className="px-12"
+                      >
+                        {isProcessing ? (
+                          <>
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-foreground mr-2" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="mr-2 h-5 w-5" />
+                            Colorize Photo
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  // Show side-by-side comparison after colorization
+                  <>
+                    <div className="relative">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-4 right-4 z-10"
+                        onClick={removeImage}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                      
+                      <div className="grid md:grid-cols-2 gap-6">
+                        <div className="space-y-3">
+                          <h3 className="text-lg font-semibold text-foreground text-center">Original</h3>
+                          <img
+                            src={uploadedImage}
+                            alt="Original black and white"
+                            className="w-full rounded-2xl shadow-lg"
+                          />
+                        </div>
+                        <div className="space-y-3">
+                          <h3 className="text-lg font-semibold text-foreground text-center">Colorized</h3>
+                          <img
+                            src={colorizedImage}
+                            alt="Colorized"
+                            className="w-full rounded-2xl shadow-lg"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="text-center space-y-4">
+                      <Button
+                        variant="hero"
+                        size="lg"
+                        onClick={downloadImage}
+                        className="px-12"
+                      >
+                        <Download className="mr-2 h-5 w-5" />
+                        Download Colorized Photo
+                      </Button>
+                      <div>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setColorizedImage(null);
+                            setIsProcessing(false);
+                          }}
+                        >
+                          Try Again
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
