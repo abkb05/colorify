@@ -1,8 +1,8 @@
+
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, Image as ImageIcon, X, Sparkles, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import sampleColor1 from "@/assets/sample-color-1.jpg";
 
 const UploadZone = () => {
   const [dragActive, setDragActive] = useState(false);
@@ -54,16 +54,38 @@ const UploadZone = () => {
 
   const handleColorize = () => {
     setIsProcessing(true);
-    // Simulate processing - in real app, this would process the actual uploaded image
+    // Simulate processing - apply colorization effect
     setTimeout(() => {
-      // For demo purposes, we'll use the uploaded image with a color filter effect
-      // In a real app, this would be the AI-colorized result
-      setColorizedImage(uploadedImage);
-      setIsProcessing(false);
-      toast({
-        title: "Colorization complete!",
-        description: "Your photo has been successfully colorized.",
-      });
+      // Create a canvas to apply colorization effect
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        // Draw the original image
+        ctx?.drawImage(img, 0, 0);
+        
+        // Apply colorization effect using CSS filters
+        if (ctx) {
+          ctx.filter = 'sepia(100%) hue-rotate(180deg) saturate(120%) brightness(110%)';
+          ctx.drawImage(img, 0, 0);
+        }
+        
+        // Get the colorized image as data URL
+        const colorizedDataUrl = canvas.toDataURL();
+        setColorizedImage(colorizedDataUrl);
+        setIsProcessing(false);
+        
+        toast({
+          title: "Colorization complete!",
+          description: "Your photo has been successfully colorized.",
+        });
+      };
+      
+      img.src = uploadedImage!;
     }, 3000);
   };
 
@@ -206,7 +228,7 @@ const UploadZone = () => {
                           <img
                             src={uploadedImage}
                             alt="Original black and white"
-                            className="w-full rounded-2xl shadow-lg"
+                            className="w-full rounded-2xl shadow-lg filter grayscale"
                           />
                         </div>
                         <div className="space-y-3">
