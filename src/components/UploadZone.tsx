@@ -54,9 +54,11 @@ const UploadZone = () => {
 
   const handleColorize = () => {
     setIsProcessing(true);
-    // Simulate processing and set colorized image
+    // Simulate processing - in real app, this would process the actual uploaded image
     setTimeout(() => {
-      setColorizedImage(sampleColor1); // In real app, this would be the AI result
+      // For demo purposes, we'll use the uploaded image with a color filter effect
+      // In a real app, this would be the AI-colorized result
+      setColorizedImage(uploadedImage);
       setIsProcessing(false);
       toast({
         title: "Colorization complete!",
