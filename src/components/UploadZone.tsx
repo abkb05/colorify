@@ -1,15 +1,15 @@
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Upload, Image as ImageIcon, X, Sparkles, Download, Key } from "lucide-react";
+import { Upload, Image as ImageIcon, X, Sparkles, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { colorizeImage, loadImageFromURL } from "@/lib/colorization";
 
 const UploadZone = () => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [colorizedImage, setColorizedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [apiKey, setApiKey] = useState<string>("");
+  const [processingProgress, setProcessingProgress] = useState(0);
   const { toast } = useToast();
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -54,67 +54,49 @@ const UploadZone = () => {
   };
 
   const handleColorize = async () => {
-    if (!apiKey.trim()) {
-      toast({
-        title: "API Key Required",
-        description: "Please enter your DeepAI API key to colorize the image.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsProcessing(true);
+    setProcessingProgress(0);
     
     try {
-      // Convert data URL to blob
-      const response = await fetch(uploadedImage!);
-      const blob = await response.blob();
+      // Load the uploaded image
+      const imageElement = await loadImageFromURL(uploadedImage!);
       
-      // Create FormData for DeepAI API
-      const formData = new FormData();
-      formData.append('image', blob, 'image.jpg');
-      
-      // Call DeepAI Colorization API
-      const deepAiResponse = await fetch('https://api.deepai.org/api/colorizer', {
-        method: 'POST',
-        headers: {
-          'Api-Key': apiKey
-        },
-        body: formData
+      // Colorize the image using our advanced pipeline
+      const colorizedBlob = await colorizeImage(imageElement, {
+        quality: 'high',
+        onProgress: (progress) => setProcessingProgress(progress)
       });
       
-      if (!deepAiResponse.ok) {
-        throw new Error(`API Error: ${deepAiResponse.status}`);
-      }
+      // Create a URL for the colorized image
+      const colorizedUrl = URL.createObjectURL(colorizedBlob);
+      setColorizedImage(colorizedUrl);
       
-      const result = await deepAiResponse.json();
-      
-      if (result.output_url) {
-        setColorizedImage(result.output_url);
-        toast({
-          title: "Colorization complete!",
-          description: "Your photo has been successfully colorized.",
-        });
-      } else {
-        throw new Error('No output URL received from API');
-      }
+      toast({
+        title: "Colorization complete!",
+        description: "Your photo has been professionally colorized with natural, realistic colors.",
+      });
       
     } catch (error) {
       console.error('Colorization error:', error);
       toast({
         title: "Colorization failed",
-        description: "Please check your API key and try again.",
+        description: "There was an error processing your image. Please try again with a different image.",
         variant: "destructive",
       });
     } finally {
       setIsProcessing(false);
+      setProcessingProgress(0);
     }
   };
 
   const removeImage = () => {
     setUploadedImage(null);
+    if (colorizedImage) {
+      URL.revokeObjectURL(colorizedImage);
+    }
     setColorizedImage(null);
     setIsProcessing(false);
+    setProcessingProgress(0);
   };
 
   const downloadImage = () => {
@@ -139,35 +121,10 @@ const UploadZone = () => {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-foreground mb-4 font-inter">
-              Upload Your Photo
+              Professional AI Colorization
             </h2>
             <p className="text-xl text-muted-foreground">
-              Drag and drop or click to select your black & white image
-            </p>
-          </div>
-
-          {/* API Key Input */}
-          <div className="mb-8 max-w-md mx-auto">
-            <div className="relative">
-              <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="password"
-                placeholder="Enter your DeepAI API Key"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <p className="text-sm text-muted-foreground mt-2 text-center">
-              Get your free API key from{" "}
-              <a 
-                href="https://deepai.org/machine-learning-model/colorizer" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                DeepAI.org
-              </a>
+              Transform your black & white images with realistic, natural colors using advanced AI
             </p>
           </div>
 
@@ -193,7 +150,7 @@ const UploadZone = () => {
                       Drop your image here
                     </h3>
                     <p className="text-muted-foreground mb-4">
-                      Support for JPG, PNG, and WEBP files
+                      Upload JPG, PNG, or WEBP files for professional AI colorization
                     </p>
                     <Button 
                       variant="hero" 
@@ -234,26 +191,43 @@ const UploadZone = () => {
                       </Button>
                     </div>
                     
-                    <div className="text-center">
+                    <div className="text-center space-y-4">
                       <Button
                         variant="hero"
                         size="lg"
                         onClick={handleColorize}
-                        disabled={isProcessing || !apiKey.trim()}
+                        disabled={isProcessing}
                         className="px-12"
                       >
                         {isProcessing ? (
                           <>
                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-foreground mr-2" />
-                            Processing...
+                            Processing ({processingProgress}%)...
                           </>
                         ) : (
                           <>
                             <Sparkles className="mr-2 h-5 w-5" />
-                            Colorize Photo
+                            Colorize with AI
                           </>
                         )}
                       </Button>
+                      
+                      {isProcessing && (
+                        <div className="max-w-md mx-auto">
+                          <div className="bg-secondary rounded-full h-2 overflow-hidden">
+                            <div 
+                              className="bg-gradient-primary h-full transition-all duration-300 ease-out"
+                              style={{ width: `${processingProgress}%` }}
+                            />
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            {processingProgress < 30 ? 'Initializing AI model...' :
+                             processingProgress < 60 ? 'Analyzing image structure...' :
+                             processingProgress < 90 ? 'Applying intelligent colorization...' :
+                             'Finalizing and enhancing...'}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </>
                 ) : (
