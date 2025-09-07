@@ -1,7 +1,7 @@
-
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, Image as ImageIcon, X, Sparkles, Download } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Upload, Image as ImageIcon, X, Sparkles, Download, Key } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const UploadZone = () => {
@@ -9,6 +9,7 @@ const UploadZone = () => {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [colorizedImage, setColorizedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [apiKey, setApiKey] = useState<string>("");
   const { toast } = useToast();
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -52,41 +53,62 @@ const UploadZone = () => {
     }
   };
 
-  const handleColorize = () => {
+  const handleColorize = async () => {
+    if (!apiKey.trim()) {
+      toast({
+        title: "API Key Required",
+        description: "Please enter your DeepAI API key to colorize the image.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsProcessing(true);
-    // Simulate processing - apply colorization effect
-    setTimeout(() => {
-      // Create a canvas to apply colorization effect
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
+    
+    try {
+      // Convert data URL to blob
+      const response = await fetch(uploadedImage!);
+      const blob = await response.blob();
       
-      img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        
-        // Draw the original image
-        ctx?.drawImage(img, 0, 0);
-        
-        // Apply colorization effect using CSS filters
-        if (ctx) {
-          ctx.filter = 'sepia(100%) hue-rotate(180deg) saturate(120%) brightness(110%)';
-          ctx.drawImage(img, 0, 0);
-        }
-        
-        // Get the colorized image as data URL
-        const colorizedDataUrl = canvas.toDataURL();
-        setColorizedImage(colorizedDataUrl);
-        setIsProcessing(false);
-        
+      // Create FormData for DeepAI API
+      const formData = new FormData();
+      formData.append('image', blob, 'image.jpg');
+      
+      // Call DeepAI Colorization API
+      const deepAiResponse = await fetch('https://api.deepai.org/api/colorizer', {
+        method: 'POST',
+        headers: {
+          'Api-Key': apiKey
+        },
+        body: formData
+      });
+      
+      if (!deepAiResponse.ok) {
+        throw new Error(`API Error: ${deepAiResponse.status}`);
+      }
+      
+      const result = await deepAiResponse.json();
+      
+      if (result.output_url) {
+        setColorizedImage(result.output_url);
         toast({
           title: "Colorization complete!",
           description: "Your photo has been successfully colorized.",
         });
-      };
+      } else {
+        throw new Error('No output URL received from API');
+      }
       
-      img.src = uploadedImage!;
-    }, 3000);
+    } catch (error) {
+      console.error('Colorization error:', error);
+      toast({
+        title: "Colorization failed",
+        description: "Please check your API key and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const removeImage = () => {
@@ -121,6 +143,31 @@ const UploadZone = () => {
             </h2>
             <p className="text-xl text-muted-foreground">
               Drag and drop or click to select your black & white image
+            </p>
+          </div>
+
+          {/* API Key Input */}
+          <div className="mb-8 max-w-md mx-auto">
+            <div className="relative">
+              <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="password"
+                placeholder="Enter your DeepAI API Key"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <p className="text-sm text-muted-foreground mt-2 text-center">
+              Get your free API key from{" "}
+              <a 
+                href="https://deepai.org/machine-learning-model/colorizer" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                DeepAI.org
+              </a>
             </p>
           </div>
 
@@ -192,7 +239,7 @@ const UploadZone = () => {
                         variant="hero"
                         size="lg"
                         onClick={handleColorize}
-                        disabled={isProcessing}
+                        disabled={isProcessing || !apiKey.trim()}
                         className="px-12"
                       >
                         {isProcessing ? (
