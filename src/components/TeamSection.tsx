@@ -1,21 +1,24 @@
 import { User } from "lucide-react";
+import abdulkhaliqImg from "@/assets/abdulkhaliq.jpg";
+import mubashirImg from "@/assets/mubashir.jpg";
+import hamzaImg from "@/assets/hamza.jpg";
 
 const TeamSection = () => {
   const teamMembers = [
     {
       name: "Abdulkhaliq Bhatti",
       role: "AI Engineer & Founder",
-      initials: "AB"
+      image: abdulkhaliqImg
     },
     {
       name: "M. Mubashir Sheikh",
       role: "Computer Vision Specialist",
-      initials: "MS"
+      image: mubashirImg
     },
     {
       name: "M. Hamza",
       role: "Full Stack Developer",
-      initials: "MH"
+      image: hamzaImg
     }
   ];
 
@@ -36,10 +39,12 @@ const TeamSection = () => {
             <div key={index} className="group">
               <div className="bg-gradient-card rounded-3xl p-8 shadow-card hover:shadow-green transition-all duration-300 hover:-translate-y-2 border border-border/50 text-center">
                 <div className="mb-6">
-                  <div className="w-24 h-24 mx-auto bg-gradient-primary rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                    <span className="text-2xl font-bold text-primary-foreground font-inter">
-                      {member.initials}
-                    </span>
+                  <div className="w-24 h-24 mx-auto rounded-2xl overflow-hidden mb-4 group-hover:scale-110 transition-transform duration-300 border-2 border-primary/20">
+                    <img 
+                      src={member.image} 
+                      alt={member.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 </div>
                 
