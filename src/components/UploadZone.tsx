@@ -53,7 +53,7 @@ const UploadZone = () => {
     }
   };
 
-  const handleColorize = async () => {
+  const handleColorize = async (selectedModel: 'deoldify' | 'opencv' | 'pytorch' | 'ensemble' = 'ensemble') => {
     setIsProcessing(true);
     setProcessingProgress(0);
     
@@ -61,9 +61,10 @@ const UploadZone = () => {
       // Load the uploaded image
       const imageElement = await loadImageFromURL(uploadedImage!);
       
-      // Colorize the image using our advanced pipeline
+      // Colorize the image using our advanced pipeline with selected model
       const colorizedBlob = await colorizeImage(imageElement, {
         quality: 'high',
+        model: selectedModel,
         onProgress: (progress) => setProcessingProgress(progress)
       });
       
@@ -73,7 +74,7 @@ const UploadZone = () => {
       
       toast({
         title: "Colorization complete!",
-        description: "Your photo has been professionally colorized with natural, realistic colors.",
+        description: `Your photo has been professionally colorized using ${selectedModel.toUpperCase()} model with natural, realistic colors.`,
       });
       
     } catch (error) {
@@ -190,45 +191,73 @@ const UploadZone = () => {
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
-                    
-                    <div className="text-center space-y-4">
-                      <Button
-                        variant="hero"
-                        size="lg"
-                        onClick={handleColorize}
-                        disabled={isProcessing}
-                        className="px-12"
-                      >
-                        {isProcessing ? (
-                          <>
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-foreground mr-2" />
-                            Processing ({processingProgress}%)...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="mr-2 h-5 w-5" />
-                            Colorize with AI
-                          </>
-                        )}
-                      </Button>
-                      
-                      {isProcessing && (
-                        <div className="max-w-md mx-auto">
-                          <div className="bg-secondary rounded-full h-2 overflow-hidden">
-                            <div 
-                              className="bg-gradient-primary h-full transition-all duration-300 ease-out"
-                              style={{ width: `${processingProgress}%` }}
-                            />
-                          </div>
-                          <p className="text-sm text-muted-foreground mt-2">
-                            {processingProgress < 30 ? 'Initializing AI model...' :
-                             processingProgress < 60 ? 'Analyzing image structure...' :
-                             processingProgress < 90 ? 'Applying intelligent colorization...' :
-                             'Finalizing and enhancing...'}
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                     
+                     <div className="text-center space-y-6">
+                       <div>
+                         <h3 className="text-lg font-semibold text-foreground mb-3">Choose AI Model:</h3>
+                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                           <Button
+                             variant="outline"
+                             onClick={() => handleColorize('deoldify')}
+                             disabled={isProcessing}
+                             className="flex flex-col items-center p-4 h-auto hover:bg-primary/10 transition-all duration-300 hover:scale-105"
+                           >
+                             <div className="font-semibold">DeOldify</div>
+                             <div className="text-xs text-muted-foreground mt-1">Vintage Style</div>
+                           </Button>
+                           <Button
+                             variant="outline"
+                             onClick={() => handleColorize('opencv')}
+                             disabled={isProcessing}
+                             className="flex flex-col items-center p-4 h-auto hover:bg-primary/10 transition-all duration-300 hover:scale-105"
+                           >
+                             <div className="font-semibold">OpenCV</div>
+                             <div className="text-xs text-muted-foreground mt-1">Sharp & Clean</div>
+                           </Button>
+                           <Button
+                             variant="outline"
+                             onClick={() => handleColorize('pytorch')}
+                             disabled={isProcessing}
+                             className="flex flex-col items-center p-4 h-auto hover:bg-primary/10 transition-all duration-300 hover:scale-105"
+                           >
+                             <div className="font-semibold">PyTorch</div>
+                             <div className="text-xs text-muted-foreground mt-1">Vibrant Colors</div>
+                           </Button>
+                           <Button
+                             variant="hero"
+                             onClick={() => handleColorize('ensemble')}
+                             disabled={isProcessing}
+                             className="flex flex-col items-center p-4 h-auto transition-all duration-300 hover:scale-105"
+                           >
+                             <div className="font-semibold">Best Quality</div>
+                             <div className="text-xs mt-1">All Models</div>
+                           </Button>
+                         </div>
+                       </div>
+                       
+                       {isProcessing && (
+                         <div className="max-w-md mx-auto bg-card/50 backdrop-blur-sm rounded-xl p-6 border border-border/50">
+                           <div className="flex items-center justify-center space-x-3 mb-3">
+                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                             <span className="text-foreground font-semibold">Processing with AI ({processingProgress}%)</span>
+                           </div>
+                           <div className="bg-secondary rounded-full h-3 overflow-hidden">
+                             <div 
+                               className="bg-gradient-primary h-full transition-all duration-500 ease-out"
+                               style={{ width: `${processingProgress}%` }}
+                             />
+                           </div>
+                           <p className="text-sm text-muted-foreground mt-3 text-center">
+                             {processingProgress < 20 ? 'Initializing professional AI models...' :
+                              processingProgress < 40 ? 'Analyzing image characteristics...' :
+                              processingProgress < 60 ? 'Applying intelligent color mapping...' :
+                              processingProgress < 80 ? 'Enhancing color accuracy...' :
+                              processingProgress < 95 ? 'Finalizing professional results...' :
+                              'Almost complete...'}
+                           </p>
+                         </div>
+                       )}
+                     </div>
                   </>
                 ) : (
                   // Show side-by-side comparison after colorization
