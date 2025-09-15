@@ -1,8 +1,12 @@
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, Image as ImageIcon, X, Sparkles, Download } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Upload, Image as ImageIcon, X, Sparkles, Download, Grid, Layers, Camera } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { colorizeImage, loadImageFromURL } from "@/lib/colorization";
+import ModelComparison from "./ModelComparison";
+import BatchProcessor from "./BatchProcessor";
+import ColorizeGallery, { useGallery } from "./ColorizeGallery";
 
 const UploadZone = () => {
   const [dragActive, setDragActive] = useState(false);
@@ -10,7 +14,12 @@ const UploadZone = () => {
   const [colorizedImage, setColorizedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
+  const [selectedModel, setSelectedModel] = useState<string>('ensemble');
+  const [currentCustomization, setCurrentCustomization] = useState<any>(null);
+  const [results, setResults] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState('single');
   const { toast } = useToast();
+  const { addToGallery } = useGallery();
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -53,9 +62,11 @@ const UploadZone = () => {
     }
   };
 
-  const handleColorize = async (selectedModel: 'deoldify' | 'opencv' | 'pytorch' | 'ensemble' = 'ensemble') => {
+  const handleColorize = async (model: string, customization?: any) => {
     setIsProcessing(true);
     setProcessingProgress(0);
+    setSelectedModel(model);
+    setCurrentCustomization(customization);
     
     try {
       // Load the uploaded image
@@ -63,8 +74,9 @@ const UploadZone = () => {
       
       // Colorize the image using our advanced pipeline with selected model
       const colorizedBlob = await colorizeImage(imageElement, {
-        quality: 'high',
-        model: selectedModel,
+        quality: 'ultra',
+        model: model as any,
+        customization,
         onProgress: (progress) => setProcessingProgress(progress)
       });
       
@@ -72,9 +84,22 @@ const UploadZone = () => {
       const colorizedUrl = URL.createObjectURL(colorizedBlob);
       setColorizedImage(colorizedUrl);
       
+      // Store result for comparison
+      setResults(prev => ({ ...prev, [model]: colorizedUrl }));
+      
+      // Add to gallery
+      if (uploadedImage) {
+        addToGallery({
+          originalImage: uploadedImage,
+          colorizedImage: colorizedUrl,
+          model,
+          customization
+        });
+      }
+      
       toast({
         title: "Colorization complete!",
-        description: `Your photo has been professionally colorized using ${selectedModel.toUpperCase()} model with natural, realistic colors.`,
+        description: `Your photo has been professionally colorized using ${model.toUpperCase()} model with natural, realistic colors.`,
       });
       
     } catch (error) {
@@ -95,6 +120,9 @@ const UploadZone = () => {
     if (colorizedImage) {
       URL.revokeObjectURL(colorizedImage);
     }
+    // Clean up all results
+    Object.values(results).forEach(url => URL.revokeObjectURL(url));
+    setResults({});
     setColorizedImage(null);
     setIsProcessing(false);
     setProcessingProgress(0);
@@ -119,206 +147,201 @@ const UploadZone = () => {
   return (
     <section className="py-20 bg-background">
       <div className="container mx-auto px-4">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-foreground mb-4 font-inter">
-              Professional AI Colorization
+              Professional AI Colorization Suite
             </h2>
             <p className="text-xl text-muted-foreground">
-              Transform your black & white images with realistic, natural colors using advanced AI
+              Transform your black & white images with industry-leading AI models
             </p>
           </div>
 
-          <div className="bg-gradient-card rounded-3xl p-8 shadow-card border border-border/50">
-            {!uploadedImage ? (
-              <div
-                className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 ${
-                  dragActive
-                    ? "border-primary bg-primary-light/50"
-                    : "border-border hover:border-primary/50 hover:bg-accent/30"
-                }`}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-              >
-                <div className="flex flex-col items-center space-y-4">
-                  <div className="bg-gradient-primary p-4 rounded-2xl">
-                    <Upload className="h-12 w-12 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-semibold text-foreground mb-2 font-inter">
-                      Drop your image here
-                    </h3>
-                    <p className="text-muted-foreground mb-4">
-                      Upload JPG, PNG, or WEBP files for professional AI colorization
-                    </p>
-                    <Button 
-                      variant="hero" 
-                      size="lg"
-                      onClick={() => document.getElementById('file-upload')?.click()}
-                    >
-                      <ImageIcon className="mr-2 h-5 w-5" />
-                      Choose File
-                    </Button>
-                    <input
-                      id="file-upload"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-                    />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {!colorizedImage ? (
-                  // Show original image before colorization
-                  <>
-                    <div className="relative">
-                      <img
-                        src={uploadedImage}
-                        alt="Uploaded"
-                        className="w-full max-w-2xl mx-auto rounded-2xl shadow-lg"
-                      />
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="absolute top-4 right-4"
-                        onClick={removeImage}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="single" className="flex items-center gap-2">
+                <Camera className="h-4 w-4" />
+                Single Image
+              </TabsTrigger>
+              <TabsTrigger value="batch" className="flex items-center gap-2">
+                <Grid className="h-4 w-4" />
+                Batch Process
+              </TabsTrigger>
+              <TabsTrigger value="gallery" className="flex items-center gap-2">
+                <Layers className="h-4 w-4" />
+                Gallery
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="single">
+              <div className="bg-gradient-card rounded-3xl p-8 shadow-card border border-border/50">
+                {!uploadedImage ? (
+                  <div
+                    className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 ${
+                      dragActive
+                        ? "border-primary bg-primary-light/50"
+                        : "border-border hover:border-primary/50 hover:bg-accent/30"
+                    }`}
+                    onDragEnter={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDragOver={handleDrag}
+                    onDrop={handleDrop}
+                  >
+                    <div className="flex flex-col items-center space-y-4">
+                      <div className="bg-gradient-primary p-4 rounded-2xl">
+                        <Upload className="h-12 w-12 text-primary-foreground" />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-semibold text-foreground mb-2 font-inter">
+                          Drop your image here
+                        </h3>
+                        <p className="text-muted-foreground mb-4">
+                          Upload JPG, PNG, or WEBP files for professional AI colorization
+                        </p>
+                        <Button 
+                          variant="hero" 
+                          size="lg"
+                          onClick={() => document.getElementById('file-upload')?.click()}
+                        >
+                          <ImageIcon className="mr-2 h-5 w-5" />
+                          Choose File
+                        </Button>
+                        <input
+                          id="file-upload"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+                        />
+                      </div>
                     </div>
-                     
-                     <div className="text-center space-y-6">
-                       <div>
-                         <h3 className="text-lg font-semibold text-foreground mb-3">Choose AI Model:</h3>
-                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                           <Button
-                             variant="outline"
-                             onClick={() => handleColorize('deoldify')}
-                             disabled={isProcessing}
-                             className="flex flex-col items-center p-4 h-auto hover:bg-primary/10 transition-all duration-300 hover:scale-105"
-                           >
-                             <div className="font-semibold">DeOldify</div>
-                             <div className="text-xs text-muted-foreground mt-1">Vintage Style</div>
-                           </Button>
-                           <Button
-                             variant="outline"
-                             onClick={() => handleColorize('opencv')}
-                             disabled={isProcessing}
-                             className="flex flex-col items-center p-4 h-auto hover:bg-primary/10 transition-all duration-300 hover:scale-105"
-                           >
-                             <div className="font-semibold">OpenCV</div>
-                             <div className="text-xs text-muted-foreground mt-1">Sharp & Clean</div>
-                           </Button>
-                           <Button
-                             variant="outline"
-                             onClick={() => handleColorize('pytorch')}
-                             disabled={isProcessing}
-                             className="flex flex-col items-center p-4 h-auto hover:bg-primary/10 transition-all duration-300 hover:scale-105"
-                           >
-                             <div className="font-semibold">PyTorch</div>
-                             <div className="text-xs text-muted-foreground mt-1">Vibrant Colors</div>
-                           </Button>
-                           <Button
-                             variant="hero"
-                             onClick={() => handleColorize('ensemble')}
-                             disabled={isProcessing}
-                             className="flex flex-col items-center p-4 h-auto transition-all duration-300 hover:scale-105"
-                           >
-                             <div className="font-semibold">Best Quality</div>
-                             <div className="text-xs mt-1">All Models</div>
-                           </Button>
-                         </div>
-                       </div>
-                       
-                       {isProcessing && (
-                         <div className="max-w-md mx-auto bg-card/50 backdrop-blur-sm rounded-xl p-6 border border-border/50">
-                           <div className="flex items-center justify-center space-x-3 mb-3">
-                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                             <span className="text-foreground font-semibold">Processing with AI ({processingProgress}%)</span>
-                           </div>
-                           <div className="bg-secondary rounded-full h-3 overflow-hidden">
-                             <div 
-                               className="bg-gradient-primary h-full transition-all duration-500 ease-out"
-                               style={{ width: `${processingProgress}%` }}
-                             />
-                           </div>
-                           <p className="text-sm text-muted-foreground mt-3 text-center">
-                             {processingProgress < 20 ? 'Initializing professional AI models...' :
-                              processingProgress < 40 ? 'Analyzing image characteristics...' :
-                              processingProgress < 60 ? 'Applying intelligent color mapping...' :
-                              processingProgress < 80 ? 'Enhancing color accuracy...' :
-                              processingProgress < 95 ? 'Finalizing professional results...' :
-                              'Almost complete...'}
-                           </p>
-                         </div>
-                       )}
-                     </div>
-                  </>
+                  </div>
                 ) : (
-                  // Show side-by-side comparison after colorization
-                  <>
-                    <div className="relative">
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="absolute top-4 right-4 z-10"
-                        onClick={removeImage}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                      
-                      <div className="grid md:grid-cols-2 gap-6">
-                        <div className="space-y-3">
-                          <h3 className="text-lg font-semibold text-foreground text-center">Original</h3>
+                  <div className="space-y-6">
+                    {!colorizedImage ? (
+                      // Show original image before colorization
+                      <>
+                        <div className="relative">
                           <img
                             src={uploadedImage}
-                            alt="Original black and white"
-                            className="w-full rounded-2xl shadow-lg filter grayscale"
+                            alt="Uploaded"
+                            className="w-full max-w-2xl mx-auto rounded-2xl shadow-lg"
                           />
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="absolute top-4 right-4"
+                            onClick={removeImage}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <div className="space-y-3">
-                          <h3 className="text-lg font-semibold text-foreground text-center">Colorized</h3>
-                          <img
-                            src={colorizedImage}
-                            alt="Colorized"
-                            className="w-full rounded-2xl shadow-lg"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="text-center space-y-4">
-                      <Button
-                        variant="hero"
-                        size="lg"
-                        onClick={downloadImage}
-                        className="px-12"
-                      >
-                        <Download className="mr-2 h-5 w-5" />
-                        Download Colorized Photo
-                      </Button>
-                      <div>
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setColorizedImage(null);
-                            setIsProcessing(false);
+                         
+                        <ModelComparison
+                          onModelSelect={handleColorize}
+                          isProcessing={isProcessing}
+                          selectedModels={Object.keys(results)}
+                          onToggleModel={(modelId) => {
+                            // Handle model toggling if needed
                           }}
-                        >
-                          Try Again
-                        </Button>
-                      </div>
-                    </div>
-                  </>
+                        />
+                        
+                        {isProcessing && (
+                          <div className="max-w-md mx-auto bg-card/50 backdrop-blur-sm rounded-xl p-6 border border-border/50">
+                            <div className="flex items-center justify-center space-x-3 mb-3">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                              <span className="text-foreground font-semibold">Processing with AI ({processingProgress}%)</span>
+                            </div>
+                            <div className="bg-secondary rounded-full h-3 overflow-hidden">
+                              <div 
+                                className="bg-gradient-primary h-full transition-all duration-500 ease-out"
+                                style={{ width: `${processingProgress}%` }}
+                              />
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-3 text-center">
+                              {processingProgress < 20 ? 'Initializing professional AI models...' :
+                               processingProgress < 40 ? 'Analyzing image characteristics...' :
+                               processingProgress < 60 ? 'Applying intelligent color mapping...' :
+                               processingProgress < 80 ? 'Enhancing color accuracy...' :
+                               processingProgress < 95 ? 'Finalizing professional results...' :
+                               'Almost complete...'}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      // Show side-by-side comparison after colorization
+                      <>
+                        <div className="relative">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="absolute top-4 right-4 z-10"
+                            onClick={removeImage}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                          
+                          <div className="grid md:grid-cols-2 gap-6">
+                            <div className="space-y-3">
+                              <h3 className="text-lg font-semibold text-foreground text-center">Original</h3>
+                              <img
+                                src={uploadedImage}
+                                alt="Original black and white"
+                                className="w-full rounded-2xl shadow-lg filter grayscale"
+                              />
+                            </div>
+                            <div className="space-y-3">
+                              <h3 className="text-lg font-semibold text-foreground text-center">Colorized</h3>
+                              <img
+                                src={colorizedImage}
+                                alt="Colorized"
+                                className="w-full rounded-2xl shadow-lg"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="text-center space-y-4">
+                          <Button
+                            variant="hero"
+                            size="lg"
+                            onClick={downloadImage}
+                            className="px-12"
+                          >
+                            <Download className="mr-2 h-5 w-5" />
+                            Download Colorized Photo
+                          </Button>
+                          <div>
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setColorizedImage(null);
+                                setIsProcessing(false);
+                              }}
+                            >
+                              Try Again
+                            </Button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
+            </TabsContent>
+
+            <TabsContent value="batch">
+              <BatchProcessor 
+                selectedModel={selectedModel}
+                customization={currentCustomization}
+              />
+            </TabsContent>
+
+            <TabsContent value="gallery">
+              <ColorizeGallery />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </section>
